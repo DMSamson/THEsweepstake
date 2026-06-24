@@ -184,7 +184,7 @@
   <header>
     <div class="brand">
       <h1>The <span class="accent">Sweepstake</span></h1>
-      <p>World Cup 2026 · 48 teams, one each, last team standing wins.</p>
+      <p>World Cup 2026 · 27 players, one team each, last team standing wins.</p>
     </div>
     <div class="status">
       <span class="pill" id="liveStatus"><span class="dot"></span><span id="liveTxt">Loading…</span></span>
@@ -263,6 +263,7 @@ const STAGES=['Eliminated','Group','Round of 32','Round of 16','Quarter-final','
 const STAGE_SHORT={'Eliminated':'Out','Group':'Group','Round of 32':'R32','Round of 16':'R16','Quarter-final':'QF','Semi-final':'SF','Final':'Final','Champion':'Champion'};
 const RUNGS=['Group','Round of 32','Round of 16','Quarter-final','Semi-final','Final','Champion'];
 const NAMES=['Alex','Priya','Jordan','Mia','Liam','Sofia','Noah','Aisha','Ben','Chloe','Dev','Erin','Finn','Grace','Hassan','Isla','Jack','Kira','Leo','Maya','Nina','Omar','Paige','Quinn','Rory','Sara','Tom','Uma','Vince','Wren','Xavi','Yusuf','Zoe','Amara','Bruno','Cora','Dante','Elin','Faye','Gus','Hana','Ivo','Jonah','Lena','Milo','Nadia','Otis','Pia'];
+const OWNERS={'Canada':'Alex Grinham','Tunisia':'Alex Jacobs','Belgium':'Ben Black','Ecuador':'Cheryl Jacobs','England':'Colin Calder','Scotland':'Daniel Samson','Uruguay':'Ellen Phillpot','Spain':'Fliss Mann','France':'George Imbert','Netherlands':'Gopi (1)','Brazil':'Gopi (2)','South Africa':'Hannah Jacobs','Sweden':'Hannah Stanton','Japan':'Jackie Cadwgan','Argentina':'James Morey','Senegal':'James Stocker','Croatia':'James Workman','Portugal':'Jenny Bliss','Norway':'Joe Friend','USA':'Joe Goss','Germany':'Lewis Downs','Ivory Coast':'Molly Flood','Iran':'Nick McCarthy','Colombia':'Phil Jacobs','Turkiye':'Soph','Switzerland':'Tom Blackman','Mexico':'Tommy Bliss'};
 
 // name, group, flag, W,D,L,GF,GA, base-strength, fun fact  (results are fallback only; live feed overrides)
 const RAW=[
@@ -315,7 +316,7 @@ const RAW=[
  ['Panama','L','🇵🇦',0,0,1,0,1,56,'Made their World Cup debut in 2018.'],
  ['Croatia','L','🇭🇷',0,0,1,2,4,78,'Runners-up in 2018, third in 2022.']
 ];
-const SEED=RAW.map((r,i)=>({name:r[0],group:r[1],flag:r[2],w:r[3],d:r[4],l:r[5],gf:r[6],ga:r[7],base:r[8],fact:r[9],owner:NAMES[i],stage:'Group'}));
+const SEED=RAW.map((r,i)=>({name:r[0],group:r[1],flag:r[2],w:r[3],d:r[4],l:r[5],gf:r[6],ga:r[7],base:r[8],fact:r[9],owner:OWNERS[r[0]]||'',stage:'Group'}));
 
 const CODE={'Mexico':'MEX','South Korea':'KOR','Czechia':'CZE','South Africa':'RSA','Switzerland':'SUI','Canada':'CAN','Qatar':'QAT','Bosnia and Herzegovina':'BIH','Scotland':'SCO','Brazil':'BRA','Morocco':'MAR','Haiti':'HAI','USA':'USA','Australia':'AUS','Turkiye':'TUR','Paraguay':'PAR','Germany':'GER','Ivory Coast':'CIV','Ecuador':'ECU','Curacao':'CUW','Sweden':'SWE','Japan':'JPN','Netherlands':'NED','Tunisia':'TUN','New Zealand':'NZL','Iran':'IRN','Belgium':'BEL','Egypt':'EGY','Uruguay':'URU','Saudi Arabia':'KSA','Spain':'ESP','Cape Verde':'CPV','Norway':'NOR','France':'FRA','Senegal':'SEN','Iraq':'IRQ','Argentina':'ARG','Austria':'AUT','Jordan':'JOR','Algeria':'ALG','DR Congo':'COD','Portugal':'POR','Colombia':'COL','Uzbekistan':'UZB','England':'ENG','Ghana':'GHA','Panama':'PAN','Croatia':'CRO'};
 // Real 2026 knockout template: {num, round, s1, s2}. Slots: 1X/2X = group X winner/runner-up; 3.. = a best-third; W/L<n> = winner/loser of match n.
@@ -406,7 +407,7 @@ async function refreshLive(){
 
 /* ---- renderers ---- */
 function renderLadder(){
-  const sorted=[...state].sort(byLadder),el=document.getElementById('ladder');el.innerHTML='';
+  const sorted=state.filter(t=>t.owner&&t.owner.trim()).sort(byLadder),el=document.getElementById('ladder');el.innerHTML='';
   sorted.forEach((t,i)=>{const rk=i+1,sr=stageRank(t),out=t.stage==='Eliminated';
     const segs=RUNGS.map(r=>{const ri=STAGES.indexOf(r);if(out&&r==='Group')return '<div class="seg elim"></div>';return '<div class="seg'+(sr>=ri&&!out?' on':'')+'"></div>';}).join('');
     const g=gd(t),gt=(g>0?'+':'')+g;
@@ -419,7 +420,7 @@ function renderGroups(){
   [...new Set(state.map(t=>t.group))].sort().forEach(L=>{
     const teams=state.filter(t=>t.group===L).sort(byTable);let rows='';
     teams.forEach((t,idx)=>{const cls=idx<2?'qpos':idx===2?'q3':'qout';const g=gd(t),gt=(g>0?'+':'')+g;
-      rows+='<tr><td class="l team '+cls+'"><span class="flag">'+t.flag+'</span><span>'+esc(t.name)+'<br><small>'+esc(t.owner)+'</small></span></td><td class="num">'+played(t)+'</td><td class="num">'+gt+'</td><td class="num pts">'+pts(t)+'</td></tr>';});
+      rows+='<tr><td class="l team '+cls+'"><span class="flag">'+t.flag+'</span><span>'+esc(t.name)+'<br><small>'+esc(t.owner||'—')+'</small></span></td><td class="num">'+played(t)+'</td><td class="num">'+gt+'</td><td class="num pts">'+pts(t)+'</td></tr>';});
     grid.insertAdjacentHTML('beforeend','<div class="card"><h3><span class="gl">Group '+L+'</span></h3><table><thead><tr><th class="l">Team</th><th>P</th><th>GD</th><th>Pts</th></tr></thead><tbody>'+rows+'</tbody></table></div>');});
 }
 function currentResults(){return (store.cache&&store.cache.results&&store.cache.results.length)?store.cache.results:[];}
@@ -474,7 +475,7 @@ function titleOdds(){const proj=projection(),raw={};let sum=0;proj.seeded.forEac
 function renderTeams(){
   const q=(document.getElementById('search').value||'').toLowerCase(),gf=document.getElementById('grpFilter').value,grid=document.getElementById('teamGrid');grid.innerHTML='';
   state.filter(t=>(!gf||t.group===gf)&&(t.name.toLowerCase().includes(q)||t.owner.toLowerCase().includes(q)||t.fact.toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name)).forEach(t=>{const g=gd(t),gt=(g>0?'+':'')+g;
-    grid.insertAdjacentHTML('beforeend','<div class="tcard"><div class="top"><div class="flag">'+t.flag+'</div><div><div class="tn">'+esc(t.name)+'</div><div class="meta">Group '+t.group+' · <b>'+pts(t)+' pts</b> · '+gt+' GD</div></div></div><div class="fact">'+esc(t.fact)+'</div><span class="own">Drawn by '+esc(t.owner)+'</span></div>');});
+    grid.insertAdjacentHTML('beforeend','<div class="tcard"><div class="top"><div class="flag">'+t.flag+'</div><div><div class="tn">'+esc(t.name)+'</div><div class="meta">Group '+t.group+' · <b>'+pts(t)+' pts</b> · '+gt+' GD</div></div></div><div class="fact">'+esc(t.fact)+'</div>'+(t.owner?'<span class="own">Drawn by '+esc(t.owner)+'</span>':'<span class="own" style="background:#23332a;color:var(--muted)">Not drawn</span>')+'</div>');});
   if(!grid.children.length)grid.innerHTML='<p class="note">No team or player matches that. Try another name.</p>';
 }
 
