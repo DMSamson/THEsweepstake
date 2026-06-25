@@ -364,7 +364,7 @@ async function fetchLive(){
   const teamset=new Set(state.map(t=>t.name));const agg={};const results=[];const koScores={};let through=null;
   const ad=n=>{if(!agg[n])agg[n]={w:0,d:0,l:0,gf:0,ga:0}};
   const KOR={'Round of 32':2,'Round of 16':3,'Quarter-final':4,'Semi-final':5,'Match for third place':5,'Final':6};
-  const reach={};let koStarted=false,finalWinner=null;
+  const reach={};let koPlayed=false,finalWinner=null;
   matches.forEach(x=>{
     const a=mapName(x.team1),b=mapName(x.team2),ft=x.score&&x.score.ft;
     const isGroup=String(x.round||'').indexOf('Matchday')===0,koRank=KOR[x.round];
@@ -376,14 +376,16 @@ async function fetchLive(){
       if(x.date&&(!through||x.date>through))through=x.date;
     }
     if(koRank&&teamset.has(a)&&teamset.has(b)){
-      koStarted=true;reach[a]=Math.max(reach[a]||0,koRank);reach[b]=Math.max(reach[b]||0,koRank);
-      if(ft){results.push({h:a,hs:ft[0],a:b,as:ft[1],tag:({2:'R32',3:'R16',4:'QF',5:'SF',6:'F'})[koRank]||'',date:x.date});
+      // The openfootball feed pre-fills some R32 slots with seeded team names before a ball is kicked,
+      // so a knockout fixture only means the knockouts are genuinely under way once it has a real score.
+      reach[a]=Math.max(reach[a]||0,koRank);reach[b]=Math.max(reach[b]||0,koRank);
+      if(ft){koPlayed=true;results.push({h:a,hs:ft[0],a:b,as:ft[1],tag:({2:'R32',3:'R16',4:'QF',5:'SF',6:'F'})[koRank]||'',date:x.date});
         if(x.round==='Final')finalWinner=ft[0]>ft[1]?a:(ft[1]>ft[0]?b:null);
         if(x.date&&(!through||x.date>through))through=x.date;}
     }
   });
   const stages={};const R2S={2:'Round of 32',3:'Round of 16',4:'Quarter-final',5:'Semi-final',6:'Final'};
-  state.forEach(t=>{stages[t.name]=reach[t.name]?((finalWinner===t.name)?'Champion':R2S[reach[t.name]]):(koStarted?'Eliminated':'Group');});
+  state.forEach(t=>{const r=koPlayed?reach[t.name]:0;stages[t.name]=r?((finalWinner===t.name)?'Champion':R2S[r]):(koPlayed?'Eliminated':'Group');});
   results.sort((x,y)=>(y.date||'').localeCompare(x.date||''));
   return{teams:agg,stages,results,koScores,through,ok:true};
 }
