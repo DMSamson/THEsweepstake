@@ -348,8 +348,15 @@ function strength(t){return Math.max(45,Math.min(99,(t.base||60)+1.2*pts(t)+0.6*
 function fmtDate(iso){if(!iso)return '';const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const p=iso.split('-');return p[2].replace(/^0/,'')+' '+m[(+p[1])-1];}
 
 /* storage */
-async function loadStore(){try{if(window.storage&&window.storage.get){const r=await window.storage.get(STORAGE_KEY);if(r&&r.value){const s=JSON.parse(r.value);store=Object.assign(store,s);}}}catch(e){}}
-async function saveStore(){try{if(window.storage&&window.storage.set){await window.storage.set(STORAGE_KEY,JSON.stringify(store));}}catch(e){}}
+async function loadStore(){try{
+  let raw=null;
+  try{raw=localStorage.getItem(STORAGE_KEY);}catch(e){}
+  if(!raw&&window.storage&&window.storage.get){const r=await window.storage.get(STORAGE_KEY);if(r&&r.value)raw=r.value;}
+  if(raw){const s=JSON.parse(raw);store=Object.assign(store,s);}
+}catch(e){}}
+async function saveStore(){const data=JSON.stringify(store);
+  try{localStorage.setItem(STORAGE_KEY,data);}catch(e){}
+  try{if(window.storage&&window.storage.set)await window.storage.set(STORAGE_KEY,data);}catch(e){}}
 
 /* state assembly */
 function buildState(){state=JSON.parse(JSON.stringify(SEED));state.forEach(t=>{if(store.owners[t.name])t.owner=store.owners[t.name];});}
