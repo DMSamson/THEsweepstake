@@ -396,7 +396,7 @@ const pts=t=>t.w*3+t.d, gd=t=>t.gf-t.ga, played=t=>t.w+t.d+t.l, stageRank=t=>STA
 const byName=n=>state.find(t=>t.name===n);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function byTable(a,b){return pts(b)-pts(a)||gd(b)-gd(a)||b.gf-a.gf||a.name.localeCompare(b.name)}
-function byLadder(a,b){return stageRank(b)-stageRank(a)||pts(b)-pts(a)||gd(b)-gd(a)||b.gf-a.gf||a.name.localeCompare(b.name)}
+function byLadder(a,b){return (b.out?0:1)-(a.out?0:1)||stageRank(b)-stageRank(a)||pts(b)-pts(a)||gd(b)-gd(a)||b.gf-a.gf||a.name.localeCompare(b.name)}
 function strength(t){return Math.max(45,Math.min(99,(t.base||60)+1.2*pts(t)+0.6*gd(t)))}
 function fmtDate(iso){if(!iso)return '';const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const p=iso.split('-');return p[2].replace(/^0/,'')+' '+m[(+p[1])-1];}
 function offIso(time){const m=/^(\d{1,2}):(\d{2})\s*UTC([+-])(\d{1,2})(?::?(\d{2}))?/.exec(time||'');if(!m)return null;return{hm:m[1].padStart(2,'0')+':'+m[2],off:m[3]+m[4].padStart(2,'0')+':'+(m[5]||'00')};}
@@ -478,7 +478,7 @@ async function refreshLive(){
 /* ---- renderers ---- */
 function renderLadder(){
   const sorted=state.filter(t=>t.owner&&t.owner.trim()).sort(byLadder),el=document.getElementById('ladder');el.innerHTML='';
-  sorted.forEach((t,i)=>{const rk=i+1,sr=stageRank(t),out=t.stage==='Eliminated';
+  sorted.forEach((t,i)=>{const rk=i+1,sr=stageRank(t),out=t.out;
     const segs=RUNGS.map(r=>{const ri=STAGES.indexOf(r);if(out&&r==='Group')return '<div class="seg elim"></div>';return '<div class="seg'+(sr>=ri&&!out?' on':'')+'"></div>';}).join('');
     const g=gd(t),gt=(g>0?'+':'')+g;
     el.insertAdjacentHTML('beforeend','<div class="row clk '+(rk<=3?'r'+rk:'')+(out?' out':'')+'" data-team="'+esc(t.name)+'"><div class="rank">'+rk+'</div>'+
@@ -659,6 +659,10 @@ function computeCasualties(){
   list.sort((a,b)=>(b.k?b.k.getTime():0)-(a.k?a.k.getTime():0));
   return list;
 }
+function markOut(){
+  const gone=new Set(computeCasualties().map(c=>c.team.name));
+  state.forEach(t=>{t.out=gone.has(t.name)||t.stage==='Eliminated';});
+}
 function renderCasualties(){
   const el=document.getElementById('casualties');if(!el)return;
   const list=computeCasualties();
@@ -676,12 +680,13 @@ function teamProfileHTML(name,ctx){
   const ladder=(ctx&&ctx.ladder)||state.filter(x=>x.owner&&x.owner.trim()).sort(byLadder);
   const lpos=ladder.findIndex(x=>x.name===name);
   const grp=state.filter(x=>x.group===t.group).sort(byTable),gpos=grp.findIndex(x=>x.name===name)+1;
-  const ord=['1st','2nd','3rd','4th'],out=t.stage==='Eliminated';
+  const ord=['1st','2nd','3rd','4th'],out=t.out;
   const td=(ctx&&ctx.odds)?ctx:titleOdds();const odds=td.out||td.odds,proj=td.proj,win=odds[name]||0,route=routePath(t,proj);
   const g=gd(t),gtxt=(g>0?'+':'')+g;
+  const outLabel=(t.stage==='Group'||t.stage==='Eliminated')?'Knocked out · group stage':'Knocked out · reached '+STAGE_SHORT[t.stage];
   let h='<div class="mhead"><span class="mfl">'+t.flag+'</span><div><h2>'+esc(t.name)+'</h2>'+
     '<div class="msub">Group '+t.group+(gpos?' · '+ord[gpos-1]+' in group':'')+(drawn?' · drawn by <b style="color:var(--chalk)">'+esc(t.owner)+'</b>':' · not drawn')+'</div>'+
-    '<span class="mbadge '+(out?'out':'alive')+'">'+(out?'Knocked out in the group stage':(drawn&&lpos>=0?'Alive · #'+(lpos+1)+' of '+ladder.length+(t.stage!=='Group'?' · '+STAGE_SHORT[t.stage]:''):(t.stage==='Group'?'In the hunt':STAGE_SHORT[t.stage])))+'</span></div></div>';
+    '<span class="mbadge '+(out?'out':'alive')+'">'+(out?outLabel:(drawn&&lpos>=0?'Alive · #'+(lpos+1)+' of '+ladder.length+(t.stage!=='Group'?' · '+STAGE_SHORT[t.stage]:''):(t.stage==='Group'?'In the hunt':STAGE_SHORT[t.stage])))+'</span></div></div>';
   h+='<div class="mstat"><div class="b"><div class="v">'+pts(t)+'</div><div class="k">Points</div></div>'+
     '<div class="b"><div class="v">'+t.w+'-'+t.d+'-'+t.l+'</div><div class="k">W-D-L</div></div>'+
     '<div class="b"><div class="v">'+t.gf+':'+t.ga+'</div><div class="k">GF:GA</div></div>'+
@@ -709,7 +714,7 @@ function teamProfileHTML(name,ctx){
 function openTeam(name){const html=teamProfileHTML(name);if(!html)return;document.getElementById('teamSheet').innerHTML='<button class="x" data-close>✕</button>'+html;document.getElementById('teamModal').classList.add('show');}
 function closeTeam(){document.getElementById('teamModal').classList.remove('show');}
 
-function renderAll(){renderToday();renderLadder();renderGroups();renderStats();renderBracket();renderTeams();renderCasualties();}
+function renderAll(){markOut();renderToday();renderLadder();renderGroups();renderStats();renderBracket();renderTeams();renderCasualties();}
 function setupShell(){
   document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));
