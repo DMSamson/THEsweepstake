@@ -190,13 +190,15 @@
   .tfix{display:flex; flex-wrap:wrap; gap:8px}
   .fchip{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:8px 11px; font-size:13px}
   .fchip .ko{font-family:var(--font-display); color:var(--muted); font-size:12px; white-space:nowrap}
-  .fchip .tm{display:inline-flex; align-items:center; gap:4px; cursor:pointer}
-  .fchip .tm:hover{color:var(--grass)}
-  .fchip .tm .flag{font-size:15px}
+  .fchip .tm{display:inline-flex; flex-direction:column; align-items:flex-start; gap:1px; cursor:pointer}
+  .fchip .tm:hover .tmtop{color:var(--grass)}
+  .fchip .tm.slot{cursor:default; color:var(--muted)}
+  .fchip .tmtop{display:flex; align-items:center; gap:4px}
+  .fchip .tmtop .flag{font-size:15px}
+  .fchip .cow{color:var(--muted); font-size:10.5px; line-height:1.1}
   .fchip .vs{color:var(--muted); font-size:11px}
   .fchip .sc{font-family:var(--font-display); color:var(--chalk)}
   .fchip .rd{font-family:var(--font-display); text-transform:uppercase; font-size:10px; color:var(--gold); letter-spacing:.04em}
-  .fchip .own{color:var(--muted); font-size:11px}
 
   /* casualties */
   .cas{display:flex; flex-direction:column; gap:7px}
@@ -265,8 +267,8 @@
 
     .today{padding:11px 12px; margin:12px 0 14px}
     .today h3{margin-bottom:9px}
-    .tfix{gap:7px}
-    .fchip{padding:7px 9px; font-size:12px; gap:6px} .fchip .tm .flag{font-size:14px} .fchip .ko{font-size:11px}
+    .tfix{gap:8px; flex-direction:column}
+    .fchip{width:100%; padding:8px 10px; font-size:12px; gap:8px} .fchip .tmtop .flag{font-size:15px} .fchip .ko{font-size:11px}
 
     .casrow{padding:8px 11px; gap:9px} .casrow .flag{font-size:18px}
     .casrow .cn{font-size:12.5px} .casrow .cwhen .cdt{display:none} .casrow .crd{font-size:10px}
@@ -295,12 +297,16 @@
     .mfxr{padding:6px 9px; font-size:12px; gap:7px} .mfxr .fd{width:78px; font-size:11px}
 
     .stattbl{font-size:12.5px} .stattbl th{padding:8px 7px} .stattbl td{padding:7px 7px}
+
+    /* stats: results + casualties first, then leaders, then full table */
+    #stats.show{display:flex; flex-direction:column}
+    #stats .b-feed{order:1} #stats .b-cas{order:2} #stats .b-leaders{order:3} #stats .b-table{order:4}
+    #stats .sblock>h2.sec{margin-top:18px}
   }
   @media(max-width:380px){
     .brand h1{font-size:28px}
     .row{grid-template-columns:26px 1fr auto; gap:7px}
     .mstat{grid-template-columns:repeat(2,1fr)}
-    .fchip .own{display:none}
   }
 </style>
 
@@ -336,14 +342,22 @@
   </section>
 
   <section id="stats">
-    <h2 class="sec">Tournament leaders</h2>
-    <div class="leaders" id="leaders"></div>
-    <h2 class="sec">Latest results</h2>
-    <div class="feed" id="feed"></div>
-    <h2 class="sec">Casualties · who's gone out</h2>
-    <div id="casualties"></div>
-    <h2 class="sec">Team stats · tap a column to sort</h2>
-    <div class="statwrap"><table class="stattbl" id="statTbl"></table></div>
+    <div class="sblock b-leaders">
+      <h2 class="sec">Tournament leaders</h2>
+      <div class="leaders" id="leaders"></div>
+    </div>
+    <div class="sblock b-feed">
+      <h2 class="sec">Latest results</h2>
+      <div class="feed" id="feed"></div>
+    </div>
+    <div class="sblock b-cas">
+      <h2 class="sec">Casualties · who's gone out</h2>
+      <div id="casualties"></div>
+    </div>
+    <div class="sblock b-table">
+      <h2 class="sec">Team stats · tap a column to sort</h2>
+      <div class="statwrap"><table class="stattbl" id="statTbl"></table></div>
+    </div>
   </section>
 
   <section id="bracket">
@@ -679,7 +693,10 @@ function renderBracket(){
     return '<div class="oddsbar'+(i===0?' top':'')+'"><span class="rk">'+(i+1)+'</span><span class="fl">'+t.flag+'</span><span class="nm">'+esc(t.name)+'</span><span class="bar"><i style="width:'+w+'%"></i></span><span class="pc">'+(pct<0.1?'<0.1':pct.toFixed(1))+'%</span></div>';}).join('');
 }
 
-function teamChip(name){const t=byName(name);if(t)return '<span class="tm" data-team="'+esc(name)+'"><span class="flag">'+t.flag+'</span>'+(CODE[name]||esc(name))+'</span>';return '<span class="tm" style="cursor:default;color:var(--muted)">'+esc(slotLabel(name))+'</span>';}
+function teamChip(name){const t=byName(name);
+  if(!t)return '<span class="tm slot">'+esc(slotLabel(name))+'</span>';
+  const own=t.owner&&t.owner.trim()?esc(t.owner):'Not drawn';
+  return '<span class="tm" data-team="'+esc(name)+'"><span class="tmtop"><span class="flag">'+t.flag+'</span>'+(CODE[name]||esc(name))+'</span><span class="cow">'+own+'</span></span>';}
 function renderToday(){
   const el=document.getElementById('todayPanel');if(!el)return;
   const fxs=(store.cache&&store.cache.fixtures)||[];
@@ -693,11 +710,9 @@ function renderToday(){
     html+='<div class="none">No matches today.'+(next?' Next up <b style="color:var(--chalk)">'+fmtDayLabel(next.k)+'</b> — '+esc(slotLabel(next.f.a))+' v '+esc(slotLabel(next.f.b))+'.':'')+'</div>';
   }else{
     html+='<div class="tfix">'+todays.map(o=>{const f=o.f,isKO=!f.grp;
-      const owns=[f.a,f.b].map(n=>{const t=byName(n);return t&&t.owner&&t.owner.trim()?t.owner:null;}).filter(Boolean);
       return '<div class="fchip"><span class="ko">'+fmtKick(o.k)+'</span>'+teamChip(f.a)+
         (f.ft?'<span class="sc">'+f.ft[0]+'–'+f.ft[1]+'</span>':'<span class="vs">v</span>')+teamChip(f.b)+
-        (isKO?'<span class="rd">'+esc(roundShort(f.round))+'</span>':'')+
-        (owns.length?'<span class="own">· '+esc(owns.join(', '))+'</span>':'')+'</div>';}).join('')+'</div>';
+        (isKO?'<span class="rd">'+esc(roundShort(f.round))+'</span>':'')+'</div>';}).join('')+'</div>';
   }
   el.innerHTML=html;
 }
