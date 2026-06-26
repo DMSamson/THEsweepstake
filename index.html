@@ -184,8 +184,13 @@
   .blabel{position:absolute; font-family:var(--font-display); text-transform:uppercase; letter-spacing:.05em; font-size:11px; color:var(--muted)}
 
   /* today panel */
-  .today{background:linear-gradient(180deg,#13241a,#0f1d15); border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin:16px 0 18px}
-  .today h3{font-family:var(--font-display); text-transform:uppercase; letter-spacing:.05em; font-size:13px; color:var(--grass); margin:0 0 11px}
+  .today{background:linear-gradient(180deg,#13241a,#0f1d15); border:1px solid var(--line); border-radius:14px; margin:16px 0 18px; overflow:hidden}
+  .today-head{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; background:transparent; border:0; cursor:pointer; padding:13px 15px; text-align:left;
+    font-family:var(--font-display); text-transform:uppercase; letter-spacing:.05em; font-size:13px; color:var(--grass)}
+  .today-head:hover{color:#5fe08c}
+  .today-head .t-sum{display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; letter-spacing:.03em}
+  .today-head .chev{color:var(--muted); font-size:11px}
+  .today-body{padding:0 15px 14px}
   .today .none{color:var(--muted); font-size:13px; line-height:1.5}
   .tfix{display:flex; flex-wrap:wrap; gap:8px}
   .fchip{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:8px 11px; font-size:13px}
@@ -265,10 +270,11 @@
     .track{margin-top:7px} .seg{height:4px}
     .stat .stage{font-size:12px} .stat .sub{font-size:11px}
 
-    .today{padding:11px 12px; margin:12px 0 14px}
-    .today h3{margin-bottom:9px}
+    .today{margin:12px 0 14px}
+    .today-head{padding:11px 12px}
+    .today-body{padding:0 12px 12px}
     .tfix{gap:8px; flex-direction:column}
-    .fchip{width:100%; padding:8px 10px; font-size:12px; gap:8px} .fchip .tmtop .flag{font-size:15px} .fchip .ko{font-size:11px}
+    .fchip{width:100%; justify-content:center; padding:8px 10px; font-size:12px; gap:10px} .fchip .tmtop .flag{font-size:15px} .fchip .ko{font-size:11px}
 
     .casrow{padding:8px 11px; gap:9px} .casrow .flag{font-size:18px}
     .casrow .cn{font-size:12.5px} .casrow .cwhen .cdt{display:none} .casrow .crd{font-size:10px}
@@ -697,22 +703,31 @@ function teamChip(name){const t=byName(name);
   if(!t)return '<span class="tm slot">'+esc(slotLabel(name))+'</span>';
   const own=t.owner&&t.owner.trim()?esc(t.owner):'Not drawn';
   return '<span class="tm" data-team="'+esc(name)+'"><span class="tmtop"><span class="flag">'+t.flag+'</span>'+(CODE[name]||esc(name))+'</span><span class="cow">'+own+'</span></span>';}
+function isMobileView(){return !!(window.matchMedia&&window.matchMedia('(max-width:600px)').matches);}
+function toggleToday(){store.todayOpen=!store.todayOpen;saveStore();renderToday();}
 function renderToday(){
   const el=document.getElementById('todayPanel');if(!el)return;
+  if(store.todayOpen===undefined)store.todayOpen=!isMobileView();
+  const open=store.todayOpen;
   const fxs=(store.cache&&store.cache.fixtures)||[];
-  if(!fxs.length){el.innerHTML='<h3>Today</h3><div class="none">Fixtures load with the live feed — tap Refresh, or open the hosted site where the feed is reachable.</div>';return;}
   const now=new Date(),today=localDate(now);
   const withK=fxs.map(f=>({f,k:kickoff(f)})).filter(o=>o.k);
   const todays=withK.filter(o=>localDate(o.k)===today).sort((a,b)=>a.k-b.k);
-  let html='<h3>Today · '+fmtDayLabel(now)+'</h3>';
-  if(!todays.length){
-    const next=withK.filter(o=>o.k>=now).sort((a,b)=>a.k-b.k)[0];
-    html+='<div class="none">No matches today.'+(next?' Next up <b style="color:var(--chalk)">'+fmtDayLabel(next.k)+'</b> — '+esc(slotLabel(next.f.a))+' v '+esc(slotLabel(next.f.b))+'.':'')+'</div>';
-  }else{
-    html+='<div class="tfix">'+todays.map(o=>{const f=o.f,isKO=!f.grp;
-      return '<div class="fchip"><span class="ko">'+fmtKick(o.k)+'</span>'+teamChip(f.a)+
-        (f.ft?'<span class="sc">'+f.ft[0]+'–'+f.ft[1]+'</span>':'<span class="vs">v</span>')+teamChip(f.b)+
-        (isKO?'<span class="rd">'+esc(roundShort(f.round))+'</span>':'')+'</div>';}).join('')+'</div>';
+  const summary=!fxs.length?'—':(!todays.length?'No matches':(todays.length+' match'+(todays.length>1?'es':'')));
+  let html='<button class="today-head" id="todayHead"><span class="t-ttl">Today · '+fmtDayLabel(now)+'</span><span class="t-sum">'+summary+'<span class="chev">'+(open?'▾':'▸')+'</span></span></button>';
+  if(open){
+    let body;
+    if(!fxs.length){body='<div class="none">Fixtures load with the live feed — tap Refresh, or open the hosted site where the feed is reachable.</div>';}
+    else if(!todays.length){
+      const next=withK.filter(o=>o.k>=now).sort((a,b)=>a.k-b.k)[0];
+      body='<div class="none">No matches today.'+(next?' Next up <b style="color:var(--chalk)">'+fmtDayLabel(next.k)+'</b> — '+esc(slotLabel(next.f.a))+' v '+esc(slotLabel(next.f.b))+'.':'')+'</div>';
+    }else{
+      body='<div class="tfix">'+todays.map(o=>{const f=o.f,isKO=!f.grp;
+        return '<div class="fchip"><span class="ko">'+fmtKick(o.k)+'</span>'+teamChip(f.a)+
+          (f.ft?'<span class="sc">'+f.ft[0]+'–'+f.ft[1]+'</span>':'<span class="vs">v</span>')+teamChip(f.b)+
+          (isKO?'<span class="rd">'+esc(roundShort(f.round))+'</span>':'')+'</div>';}).join('')+'</div>';
+    }
+    html+='<div class="today-body">'+body+'</div>';
   }
   el.innerHTML=html;
 }
@@ -800,6 +815,7 @@ function setupShell(){
   document.getElementById('refreshBtn').onclick=refreshLive;
   document.body.addEventListener('click',e=>{
     if(e.target.closest('[data-close]')||e.target.classList.contains('mback')){closeTeam();return;}
+    if(e.target.closest('#todayHead')){toggleToday();return;}
     const el=e.target.closest('[data-team]');
     if(el&&!e.target.closest('.msheet')){const n=el.getAttribute('data-team');if(n&&byName(n))openTeam(n);}
   });
