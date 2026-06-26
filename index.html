@@ -188,10 +188,13 @@
   .today-head{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; background:transparent; border:0; cursor:pointer; padding:13px 15px; text-align:left;
     font-family:var(--font-display); text-transform:uppercase; letter-spacing:.05em; font-size:13px; color:var(--grass)}
   .today-head:hover{color:#5fe08c}
-  .today-head .t-sum{display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; letter-spacing:.03em}
+  .today-head .t-ttl{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px; min-width:0}
+  .today-head .t-date{color:var(--muted); font-size:11px; font-weight:400; letter-spacing:.02em}
+  .today-head .t-sum{flex:none; display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; letter-spacing:.03em; white-space:nowrap}
   .today-head .chev{color:var(--muted); font-size:11px}
   .today-body{padding:0 15px 14px}
   .today .none{color:var(--muted); font-size:13px; line-height:1.5}
+  .fchip.has-contender{border-left:3px solid var(--grass-dim)}
   .tfix{display:flex; flex-wrap:wrap; gap:8px}
   .fchip{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:8px 11px; font-size:13px}
   .fchip .ko{font-family:var(--font-display); color:var(--muted); font-size:12px; white-space:nowrap}
@@ -714,7 +717,7 @@ function renderToday(){
   const withK=fxs.map(f=>({f,k:kickoff(f)})).filter(o=>o.k);
   const todays=withK.filter(o=>localDate(o.k)===today).sort((a,b)=>a.k-b.k);
   const summary=!fxs.length?'—':(!todays.length?'No matches':(todays.length+' match'+(todays.length>1?'es':'')));
-  let html='<button class="today-head" id="todayHead"><span class="t-ttl">Today · '+fmtDayLabel(now)+'</span><span class="t-sum">'+summary+'<span class="chev">'+(open?'▾':'▸')+'</span></span></button>';
+  let html='<button class="today-head" id="todayHead"><span class="t-ttl">Today\'s Contenders<span class="t-date">· '+fmtDayLabel(now)+'</span></span><span class="t-sum">'+summary+'<span class="chev">'+(open?'▾':'▸')+'</span></span></button>';
   if(open){
     let body;
     if(!fxs.length){body='<div class="none">Fixtures load with the live feed — tap Refresh, or open the hosted site where the feed is reachable.</div>';}
@@ -723,7 +726,8 @@ function renderToday(){
       body='<div class="none">No matches today.'+(next?' Next up <b style="color:var(--chalk)">'+fmtDayLabel(next.k)+'</b> — '+esc(slotLabel(next.f.a))+' v '+esc(slotLabel(next.f.b))+'.':'')+'</div>';
     }else{
       body='<div class="tfix">'+todays.map(o=>{const f=o.f,isKO=!f.grp;
-        return '<div class="fchip"><span class="ko">'+fmtKick(o.k)+'</span>'+teamChip(f.a)+
+        const contender=[f.a,f.b].some(n=>{const t=byName(n);return t&&t.owner&&t.owner.trim();});
+        return '<div class="fchip'+(contender?' has-contender':'')+'"><span class="ko">'+fmtKick(o.k)+'</span>'+teamChip(f.a)+
           (f.ft?'<span class="sc">'+f.ft[0]+'–'+f.ft[1]+'</span>':'<span class="vs">v</span>')+teamChip(f.b)+
           (isKO?'<span class="rd">'+esc(roundShort(f.round))+'</span>':'')+'</div>';}).join('')+'</div>';
     }
