@@ -242,6 +242,66 @@
   .mfxr .fo{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .mfxr .fr{font-family:var(--font-display)}
   .mfxr.wln .fr{color:var(--grass)} .mfxr.lss .fr{color:var(--red)}
+
+  /* ---------- mobile ---------- */
+  @media(max-width:600px){
+    .wrap{padding:14px 11px 64px}
+    .brand p{font-size:12px}
+    header{gap:10px; padding-bottom:13px}
+    .pill{font-size:11px; padding:5px 9px} .iconbtn{font-size:11px; padding:5px 9px}
+    /* tabs become a swipeable single row */
+    nav.tabs{flex-wrap:nowrap; overflow-x:auto; gap:5px; margin:14px -11px 4px; padding:0 11px 2px; scrollbar-width:none; -webkit-overflow-scrolling:touch}
+    nav.tabs::-webkit-scrollbar{display:none}
+    .tab{flex:0 0 auto; font-size:13px; padding:8px 13px}
+    .lead{font-size:13px; line-height:1.5; margin:12px 0 14px}
+    h2.sec{font-size:14px; margin:22px 0 10px}
+
+    .row{grid-template-columns:30px 1fr auto; gap:9px; padding:10px 11px; border-radius:11px}
+    .row .rank{font-size:20px}
+    .who .name{font-size:14px; gap:7px} .who .name .flag{font-size:17px}
+    .who .team{font-size:11.5px}
+    .track{margin-top:7px} .seg{height:4px}
+    .stat .stage{font-size:12px} .stat .sub{font-size:11px}
+
+    .today{padding:11px 12px; margin:12px 0 14px}
+    .today h3{margin-bottom:9px}
+    .tfix{gap:7px}
+    .fchip{padding:7px 9px; font-size:12px; gap:6px} .fchip .tm .flag{font-size:14px} .fchip .ko{font-size:11px}
+
+    .casrow{padding:8px 11px; gap:9px} .casrow .flag{font-size:18px}
+    .casrow .cn{font-size:12.5px} .casrow .cwhen .cdt{display:none} .casrow .crd{font-size:10px}
+
+    .grid{gap:11px} .leaders{gap:10px} .feed{gap:8px}
+    .match{font-size:12.5px; padding:8px 10px}
+    .lcard{padding:12px 13px} .lcard .lv{font-size:20px}
+
+    .oddsbar{gap:8px; padding:7px 0} .oddsbar .fl{font-size:16px}
+    .oddsbar .nm{width:84px; font-size:12px} .oddsbar .rk{width:18px; font-size:12px}
+    .oddsbar .pc{width:44px; font-size:13px}
+
+    .panelbox{padding:14px 13px}
+    .selrow{gap:8px} .sel{min-width:0; padding:9px 10px; font-size:13.5px}
+    .rstep{grid-template-columns:60px 1fr 50px; gap:8px; padding:8px 10px}
+    .rstep .rd{font-size:10px} .rstep .opp{font-size:12.5px} .rstep .opp .flag{font-size:15px}
+
+    .toolbar{gap:8px} input.search{min-width:0; padding:9px 11px} select.filter{padding:9px 10px}
+
+    .tprofile{padding:14px 13px 16px}
+    .msheet{width:96vw; padding:16px 14px 20px; border-radius:14px}
+    .mhead{gap:11px} .mhead .mfl{font-size:34px} .mhead h2{font-size:21px} .mhead .msub{font-size:12px}
+    .mstat{gap:6px; margin:13px 0} .mstat .b{padding:8px 4px} .mstat .b .v{font-size:16px}
+    .msec{margin:14px 0 7px}
+    .mrt{padding:6px 9px; font-size:12px; gap:8px} .mrt .rr{width:36px}
+    .mfxr{padding:6px 9px; font-size:12px; gap:7px} .mfxr .fd{width:78px; font-size:11px}
+
+    .stattbl{font-size:12.5px} .stattbl th{padding:8px 7px} .stattbl td{padding:7px 7px}
+  }
+  @media(max-width:380px){
+    .brand h1{font-size:28px}
+    .row{grid-template-columns:26px 1fr auto; gap:7px}
+    .mstat{grid-template-columns:repeat(2,1fr)}
+    .fchip .own{display:none}
+  }
 </style>
 
 <div class="wrap">
@@ -316,7 +376,7 @@ const STAGES=['Eliminated','Group','Round of 32','Round of 16','Quarter-final','
 const STAGE_SHORT={'Eliminated':'Out','Group':'Group','Round of 32':'R32','Round of 16':'R16','Quarter-final':'QF','Semi-final':'SF','Final':'Final','Champion':'Champion'};
 const RUNGS=['Group','Round of 32','Round of 16','Quarter-final','Semi-final','Final','Champion'];
 const NAMES=['Alex','Priya','Jordan','Mia','Liam','Sofia','Noah','Aisha','Ben','Chloe','Dev','Erin','Finn','Grace','Hassan','Isla','Jack','Kira','Leo','Maya','Nina','Omar','Paige','Quinn','Rory','Sara','Tom','Uma','Vince','Wren','Xavi','Yusuf','Zoe','Amara','Bruno','Cora','Dante','Elin','Faye','Gus','Hana','Ivo','Jonah','Lena','Milo','Nadia','Otis','Pia'];
-const OWNERS={'Canada':'Alex G','Tunisia':'Alex J','Belgium':'Ben B','Ecuador':'Cheryl J','England':'Colin C','Scotland':'Dan S','Uruguay':'Ellen P','Spain':'Fliss M','France':'George I','Netherlands':'Gopi (1)','Brazil':'Gopi (2)','South Africa':'Hannah J','Sweden':'Hannah S','Japan':'Jackie C','Argentina':'James M','Senegal':'James S','Croatia':'James W','Portugal':'Jenny B','Norway':'Joe F','USA':'Joe G','Germany':'Lewis D','Ivory Coast':'Molly F','Iran':'Nick McC','Colombia':'Phil J','Turkiye':'Soph CJ','Switzerland':'Tom Blackman','Mexico':'Tom Bliss'};
+const OWNERS={'Canada':'Alex G','Tunisia':'Alex J','Belgium':'Ben B','Ecuador':'Cheryl J','England':'Colin C','Scotland':'Daniel S','Uruguay':'Ellen P','Spain':'Fliss M','France':'George I','Netherlands':'Gopi (1)','Brazil':'Gopi (2)','South Africa':'Hannah J','Sweden':'Hannah S','Japan':'Jackie C','Argentina':'James M','Senegal':'James S','Croatia':'James W','Portugal':'Jenny B','Norway':'Joe F','USA':'Joe G','Germany':'Lewis D','Ivory Coast':'Molly F','Iran':'Nick McC','Colombia':'Phil J','Turkiye':'Soph CJ','Switzerland':'Tom Blackman','Mexico':'Tom Bliss'};
 
 // name, group, flag, W,D,L,GF,GA, base-strength, fun fact  (results are fallback only; live feed overrides)
 const RAW=[
