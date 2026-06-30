@@ -169,13 +169,20 @@
   .btn.danger{border-color:#5a2622; color:var(--red)}
   .note{color:var(--muted); font-size:12px; margin:10px 0 0}
   footer{color:var(--muted); font-size:11.5px; text-align:center; margin-top:30px; line-height:1.6}
-  .bmatch{position:absolute; width:118px; background:var(--panel); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+  .bmatch{position:absolute; width:118px; background:var(--panel); border:1px solid var(--line); border-radius:8px}
   .brow{display:flex; align-items:center; gap:6px; padding:5px 8px; font-size:12px}
+  .brow:first-child{border-radius:7px 7px 0 0} .brow:last-child{border-radius:0 0 7px 7px}
   .brow+.brow{border-top:1px solid #1a3024}
   .brow .bf{font-size:14px} .brow .bc{font-family:var(--font-display); letter-spacing:.03em}
   .brow.win{background:rgba(43,212,107,.13)} .brow.win .bc{color:var(--grass); font-weight:600}
   .brow.tbd{color:var(--muted)} .brow.tbd .bc{color:var(--muted)}
   .bmatch.played{border-color:var(--grass-dim)}
+  .bmatch.is-upset{border-color:#6a5420} .bmatch.is-shock{border-color:#6a2a30}
+  .bmatch .bbadges{position:absolute; top:-9px; right:-4px; display:flex; gap:3px; z-index:4}
+  .bmatch .ubadge{font-family:var(--font-display); text-transform:uppercase; font-size:8px; letter-spacing:.03em; padding:2px 4px; border-radius:4px; line-height:1.3; white-space:nowrap; border:1px solid}
+  .ubadge.pens{background:#16252e; color:#8fc7e0; border-color:#2a4452}
+  .ubadge.upset{background:#2e2410; color:var(--gold); border-color:#6a5420}
+  .ubadge.shock{background:#311417; color:#ff8f8f; border-color:#6a2a30}
   .bsc{margin-left:auto; font-family:var(--font-display); color:var(--muted); font-size:12px}
   .brow.win .bsc{color:var(--grass)}
   .bchamp{position:absolute; width:140px; background:linear-gradient(180deg,#1c2a18,#13210f); border:1px solid var(--gold); border-radius:10px; padding:10px; text-align:center}
@@ -341,7 +348,7 @@
 
   <section id="leaderboard" class="show">
     <div id="todayPanel" class="today"></div>
-    <p class="lead">Everyone's still in the group stage, so the ladder is ranked by <b>group points</b>, then goal difference, then goals scored. Once teams start dropping out, the team that climbs <b>furthest through the rounds</b> takes the lead. <b>Tap any team</b> anywhere to see its full profile.</p>
+    <p class="lead">Everyone's still in the group stage, so the ladder is ranked by <b>group points</b>, then goal difference, then goals scored. Once teams start dropping out, the team that climbs <b>furthest through the rounds</b> takes the lead. Prize tiebreak: goal difference across the tournament. <b>Tap any team</b> anywhere to see its full profile.</p>
     <div class="ladder" id="ladder"></div>
   </section>
 
@@ -370,7 +377,7 @@
   </section>
 
   <section id="bracket">
-    <p class="lead" id="bracketLead">The full road to the MetLife final in New Jersey. Each tie shows every team's <b>chance of winning that match</b>; group winners and runners-up come from the live tables, the eight best third-placed teams are slotted into the real 2026 bracket, and the favourite advances. As the knockouts play out from 28 June, real results take over automatically.</p>
+    <p class="lead" id="bracketLead">The full road to the MetLife final in New Jersey. Each tie shows every team's <b>chance of winning that match</b>; group winners and runners-up come from the live tables, the eight best third-placed teams are slotted into the real 2026 bracket, and the favourite advances. As the knockouts play out from 28 June, real results take over automatically — shootouts are settled by the actual penalties, and any <b>upset</b> (the underdog winning) gets flagged.</p>
     <div style="overflow:auto; border:1px solid var(--line); border-radius:14px; background:#0b1812; max-height:78vh"><div id="bracketCanvas" style="position:relative"></div></div>
     <p class="note">Scroll to follow the tree across to the final. The projected champion is highlighted in gold.</p>
     <h2 class="sec">Title odds — top 10</h2>
@@ -511,7 +518,7 @@ async function fetchLive(){
   const res=await fetch(LIVE_URL,{cache:'no-store'});
   if(!res.ok)throw new Error('http '+res.status);
   const d=await res.json();const matches=d.matches||[];
-  const teamset=new Set(state.map(t=>t.name));const agg={};const results=[];const koScores={};const fixtures=[];let through=null;
+  const teamset=new Set(state.map(t=>t.name));const agg={};const results=[];const koScores={};const koPens={};const koTeams={};const fixtures=[];let through=null;
   const ad=n=>{if(!agg[n])agg[n]={w:0,d:0,l:0,gf:0,ga:0}};
   const KOR={'Round of 32':2,'Round of 16':3,'Quarter-final':4,'Semi-final':5,'Match for third place':5,'Final':6};
   const reach={};let koPlayed=false,finalWinner=null;
@@ -519,7 +526,7 @@ async function fetchLive(){
     const a=mapName(x.team1),b=mapName(x.team2),ft=x.score&&x.score.ft;
     const isGroup=String(x.round||'').indexOf('Matchday')===0,koRank=KOR[x.round];
     fixtures.push({a,b,date:x.date||'',time:x.time||'',round:x.round||'',grp:(x.group||'').replace('Group ',''),ft:ft||null,pen:(x.score&&x.score.p)||null,ground:x.ground||''});
-    if(koRank&&ft&&x.num!=null)koScores[x.num]=ft;
+    if(koRank&&ft&&x.num!=null){koScores[x.num]=ft;const pn=x.score&&x.score.p;if(pn)koPens[x.num]=pn;}
     if(isGroup&&ft&&teamset.has(a)&&teamset.has(b)){
       ad(a);ad(b);agg[a].gf+=ft[0];agg[a].ga+=ft[1];agg[b].gf+=ft[1];agg[b].ga+=ft[0];
       if(ft[0]>ft[1]){agg[a].w++;agg[b].l++;}else if(ft[1]>ft[0]){agg[b].w++;agg[a].l++;}else{agg[a].d++;agg[b].d++;}
@@ -527,8 +534,9 @@ async function fetchLive(){
       if(x.date&&(!through||x.date>through))through=x.date;
     }
     if(koRank&&teamset.has(a)&&teamset.has(b)){
-      // The openfootball feed pre-fills some R32 slots with seeded team names before a ball is kicked,
-      // so a knockout fixture only means the knockouts are genuinely under way once it has a real score.
+      // Once a knockout slot holds two real qualifiers, the feed is the source of truth for the matchup —
+      // use it directly so the bracket can't drift from the official pairings.
+      if(x.num!=null)koTeams[x.num]=[a,b];
       reach[a]=Math.max(reach[a]||0,koRank);reach[b]=Math.max(reach[b]||0,koRank);
       if(ft){koPlayed=true;results.push({h:a,hs:ft[0],a:b,as:ft[1],tag:({2:'R32',3:'R16',4:'QF',5:'SF',6:'F'})[koRank]||'',date:x.date});
         if(x.round==='Final')finalWinner=ft[0]>ft[1]?a:(ft[1]>ft[0]?b:null);
@@ -538,7 +546,7 @@ async function fetchLive(){
   const stages={};const R2S={2:'Round of 32',3:'Round of 16',4:'Quarter-final',5:'Semi-final',6:'Final'};
   state.forEach(t=>{const r=koPlayed?reach[t.name]:0;stages[t.name]=r?((finalWinner===t.name)?'Champion':R2S[r]):(koPlayed?'Eliminated':'Group');});
   results.sort((x,y)=>(y.date||'').localeCompare(x.date||''));
-  return{teams:agg,stages,results,koScores,fixtures,through,ok:true};
+  return{teams:agg,stages,results,koScores,koPens,koTeams,fixtures,through,ok:true};
 }
 
 function setStatus(kind,through){
@@ -649,9 +657,10 @@ function assignThirds(){
   if(Object.keys(assign).length<slotNums.length){assign={};slotNums.forEach((sn,i)=>assign[sn]=top8[i]);}
   return assign;
 }
-function buildBracketModel(ks){
+function buildBracketModel(ks,kp,kt){
   const byNum={};BRACKET.forEach(m=>byNum[m.n]=m);
   const assigned=assignThirds();const resolved={};
+  const groupsDone=state.length>0&&state.every(t=>played(t)>=3);
   function resolveSlot(slot,num){
     if(/^[12][A-L]$/.test(slot)){const pos=+slot[0],L=slot[1];const ts=state.filter(t=>t.group===L).sort(byTable);return ts[pos-1]||null;}
     if(slot.indexOf('3:')===0)return assigned[num]||null;
@@ -660,16 +669,27 @@ function buildBracketModel(ks){
     return null;
   }
   BRACKET.forEach(m=>{
-    const t1=resolveSlot(m.a,m.n),t2=resolveSlot(m.b,m.n);let winner=null,loser=null,played=false,sc=null;
+    // Once the group stage is complete, the feed carries the official matchups — trust them over the slot table.
+    const feed=groupsDone&&kt&&kt[m.n];
+    const t1=(feed&&byName(feed[0]))||resolveSlot(m.a,m.n),t2=(feed&&byName(feed[1]))||resolveSlot(m.b,m.n);
+    let winner=null,loser=null,played=false,sc=null,pens=null,upset=null;
     const f=ks&&ks[m.n];
-    if(f&&t1&&t2){played=true;sc=f;if(f[0]>f[1]){winner=t1;loser=t2;}else if(f[1]>f[0]){winner=t2;loser=t1;}else{winner=strength(t1)>=strength(t2)?t1:t2;loser=winner===t1?t2:t1;}}
+    if(f&&t1&&t2){played=true;sc=f;
+      if(f[0]>f[1]){winner=t1;loser=t2;}
+      else if(f[1]>f[0]){winner=t2;loser=t1;}
+      else{const p=kp&&kp[m.n];pens=p||null;
+        if(p&&p[0]!==p[1]){winner=p[0]>p[1]?t1:t2;}else{winner=strength(t1)>=strength(t2)?t1:t2;}
+        loser=winner===t1?t2:t1;}
+      const wp=pWin(strength(winner),strength(loser));
+      if(wp<0.40)upset=wp<0.22?'shock':'upset';
+    }
     else if(t1||t2){const s1=t1?strength(t1):-1,s2=t2?strength(t2):-1;winner=s1>=s2?t1:t2;loser=winner===t1?t2:t1;}
-    resolved[m.n]={t1,t2,winner,loser,played,sc};
+    resolved[m.n]={t1,t2,winner,loser,played,sc,pens,upset};
   });
   return{byNum,resolved};
 }
 function renderBracket(){
-  const ks=(store.cache&&store.cache.koScores)||{};const{resolved}=buildBracketModel(ks);
+  const ks=(store.cache&&store.cache.koScores)||{};const kp=(store.cache&&store.cache.koPens)||{};const kt=(store.cache&&store.cache.koTeams)||{};const{resolved}=buildBracketModel(ks,kp,kt);
   const CARD_W=118,CARD_H=50,ROW=64,COL_W=170,TOP=28;
   const byNum={};BRACKET.forEach(m=>byNum[m.n]=m);
   const childrenOf=m=>{const c=[];[m.a,m.b].forEach(s=>{const w=/^W(\d+)$/.exec(s);if(w)c.push(+w[1]);});return c;};
@@ -691,7 +711,10 @@ function renderBracket(){
   let cards='';
   BRACKET.forEach(m=>{const R=resolved[m.n],x=ROUND_X[m.r]*COL_W,y=cy[m.n]+TOP-CARD_H/2;const s1=R.sc?R.sc[0]:null,s2=R.sc?R.sc[1]:null;
     let p1=null,p2=null;if(!R.played&&R.t1&&R.t2){p1=Math.round(pWin(strength(R.t1),strength(R.t2))*100);p2=100-p1;}
-    cards+='<div class="bmatch'+(R.played?' played':'')+'" style="left:'+x+'px;top:'+y+'px">'+
+    let badges='';
+    if(R.played&&R.pens)badges+='<span class="ubadge pens">PENS '+R.pens[0]+'–'+R.pens[1]+'</span>';
+    if(R.played&&R.upset)badges+='<span class="ubadge '+R.upset+'">'+(R.upset==='shock'?'SHOCK':'UPSET')+'</span>';
+    cards+='<div class="bmatch'+(R.played?' played':'')+(R.upset?' is-'+R.upset:'')+'" style="left:'+x+'px;top:'+y+'px">'+(badges?'<div class="bbadges">'+badges+'</div>':'')+
       row(R.t1,R.winner&&R.t1&&R.winner.name===R.t1.name,s1,p1)+row(R.t2,R.winner&&R.t2&&R.winner.name===R.t2.name,s2,p2)+'</div>';});
   const champ=resolved[104]?resolved[104].winner:null;
   cards+='<div class="bchamp" style="left:'+champX+'px;top:'+(fy-34)+'px"><div class="ct">'+((resolved[104]&&resolved[104].played)?'Champion':'Projected')+'</div><div class="cf">'+(champ?champ.flag:'🏆')+'</div><div class="cn">'+(champ?esc(champ.name):'—')+'</div></div>';
