@@ -176,6 +176,7 @@
   .brow .bf{font-size:14px} .brow .bc{font-family:var(--font-display); letter-spacing:.03em}
   .brow.win{background:rgba(43,212,107,.13)} .brow.win .bc{color:var(--grass); font-weight:600}
   .brow.tbd{color:var(--muted)} .brow.tbd .bc{color:var(--muted)}
+  .brow.proj{opacity:.42} .brow.proj .bc{font-style:italic; font-weight:400}
   .bmatch.played{border-color:var(--grass-dim)}
   .bmatch.is-upset{border-color:#6a5420} .bmatch.is-shock{border-color:#6a2a30}
   .bmatch .bbadges{position:absolute; top:-9px; right:-4px; display:flex; gap:3px; z-index:4}
@@ -377,7 +378,7 @@
   </section>
 
   <section id="bracket">
-    <p class="lead" id="bracketLead">The full road to the MetLife final in New Jersey. Each tie shows every team's <b>chance of winning that match</b>; group winners and runners-up come from the live tables, the eight best third-placed teams are slotted into the real 2026 bracket, and the favourite advances. As the knockouts play out from 28 June, real results take over automatically — shootouts are settled by the actual penalties, and any <b>upset</b> (the underdog winning) gets flagged.</p>
+    <p class="lead" id="bracketLead">The full road to the MetLife final in New Jersey. Each tie shows every team's <b>chance of winning that match</b>; group winners and runners-up come from the live tables, the eight best third-placed teams are slotted into the real 2026 bracket, and the favourite advances. As the knockouts play out, real results take over automatically. <b>Solid</b> teams have booked their place; <b>faded</b> teams are the projected favourite for a tie that hasn't been decided yet. Shootouts are settled by the actual penalties, and any <b>upset</b> (the underdog winning) gets flagged.</p>
     <div style="overflow:auto; border:1px solid var(--line); border-radius:14px; background:#0b1812; max-height:78vh"><div id="bracketCanvas" style="position:relative"></div></div>
     <p class="note">Scroll to follow the tree across to the final. The projected champion is highlighted in gold.</p>
     <h2 class="sec">Title odds — top 10</h2>
@@ -668,10 +669,16 @@ function buildBracketModel(ks,kp,kt){
     m=/^L(\d+)$/.exec(slot);if(m)return resolved[+m[1]]?resolved[+m[1]].loser:null;
     return null;
   }
+  function slotConf(slot){
+    if(/^[12][A-L]$/.test(slot)||slot.indexOf('3:')===0)return groupsDone;
+    const m=/^[WL](\d+)$/.exec(slot);if(m)return resolved[+m[1]]?resolved[+m[1]].played:false;
+    return false;
+  }
   BRACKET.forEach(m=>{
     // Once the group stage is complete, the feed carries the official matchups — trust them over the slot table.
     const feed=groupsDone&&kt&&kt[m.n];
     const t1=(feed&&byName(feed[0]))||resolveSlot(m.a,m.n),t2=(feed&&byName(feed[1]))||resolveSlot(m.b,m.n);
+    const t1conf=!!feed||slotConf(m.a),t2conf=!!feed||slotConf(m.b);
     let winner=null,loser=null,played=false,sc=null,pens=null,upset=null;
     const f=ks&&ks[m.n];
     if(f&&t1&&t2){played=true;sc=f;
@@ -681,16 +688,17 @@ function buildBracketModel(ks,kp,kt){
         if(p&&p[0]!==p[1]){winner=p[0]>p[1]?t1:t2;}else{winner=strength(t1)>=strength(t2)?t1:t2;}
         loser=winner===t1?t2:t1;}
       const wp=pWin(strength(winner),strength(loser));
-      if(wp<0.40)upset=wp<0.22?'shock':'upset';
+      if(wp<0.40)upset='upset';
     }
     else if(t1||t2){const s1=t1?strength(t1):-1,s2=t2?strength(t2):-1;winner=s1>=s2?t1:t2;loser=winner===t1?t2:t1;}
-    resolved[m.n]={t1,t2,winner,loser,played,sc,pens,upset};
+    resolved[m.n]={t1,t2,t1conf,t2conf,winner,loser,played,sc,pens,upset};
   });
   return{byNum,resolved};
 }
 function renderBracket(){
   const ks=(store.cache&&store.cache.koScores)||{};const kp=(store.cache&&store.cache.koPens)||{};const kt=(store.cache&&store.cache.koTeams)||{};const{resolved}=buildBracketModel(ks,kp,kt);
-  const CARD_W=118,CARD_H=50,ROW=64,COL_W=170,TOP=28;
+  const mob=isMobileView();
+  const CARD_W=mob?122:118,CARD_H=mob?52:50,ROW=mob?82:64,COL_W=mob?150:170,TOP=30;
   const byNum={};BRACKET.forEach(m=>byNum[m.n]=m);
   const childrenOf=m=>{const c=[];[m.a,m.b].forEach(s=>{const w=/^W(\d+)$/.exec(s);if(w)c.push(+w[1]);});return c;};
   const leafOrder=[];(function dfs(n){const ch=childrenOf(byNum[n]);if(!ch.length){leafOrder.push(n);return;}ch.forEach(dfs);})(104);
@@ -705,17 +713,17 @@ function renderBracket(){
   const fy=cy[104]+TOP,fxr=ROUND_X['Final']*COL_W+CARD_W;
   paths+='<path d="M'+fxr+' '+fy+' H'+champX+'" fill="none" stroke="#5a4d22" stroke-width="2"/>';
   let labels='';['Round of 32','Round of 16','Quarter-final','Semi-final','Final'].forEach(r=>{labels+='<div class="blabel" style="left:'+(ROUND_X[r]*COL_W)+'px;top:0">'+({'Round of 32':'Round of 32','Round of 16':'Round of 16','Quarter-final':'Quarters','Semi-final':'Semis','Final':'Final'})[r]+'</div>';});
-  const row=(team,isWin,sc,pct)=>{if(!team)return '<div class="brow tbd"><span class="bf">·</span><span class="bc">TBD</span></div>';
+  const row=(team,isWin,sc,pct,conf)=>{if(!team)return '<div class="brow tbd"><span class="bf">·</span><span class="bc">TBD</span></div>';
     const right=sc!=null?sc:(pct!=null?pct+'%':'');
-    return '<div class="brow clk'+(isWin?' win':'')+'" data-team="'+esc(team.name)+'"><span class="bf">'+team.flag+'</span><span class="bc">'+(CODE[team.name]||team.name.slice(0,3).toUpperCase())+'</span>'+(right!==''?'<span class="bsc">'+right+'</span>':'')+'</div>';};
+    return '<div class="brow clk'+(isWin?' win':'')+(conf===false?' proj':'')+'" data-team="'+esc(team.name)+'"><span class="bf">'+team.flag+'</span><span class="bc">'+(CODE[team.name]||team.name.slice(0,3).toUpperCase())+'</span>'+(right!==''?'<span class="bsc">'+right+'</span>':'')+'</div>';};
   let cards='';
   BRACKET.forEach(m=>{const R=resolved[m.n],x=ROUND_X[m.r]*COL_W,y=cy[m.n]+TOP-CARD_H/2;const s1=R.sc?R.sc[0]:null,s2=R.sc?R.sc[1]:null;
     let p1=null,p2=null;if(!R.played&&R.t1&&R.t2){p1=Math.round(pWin(strength(R.t1),strength(R.t2))*100);p2=100-p1;}
     let badges='';
     if(R.played&&R.pens)badges+='<span class="ubadge pens">PENS '+R.pens[0]+'–'+R.pens[1]+'</span>';
-    if(R.played&&R.upset)badges+='<span class="ubadge '+R.upset+'">'+(R.upset==='shock'?'SHOCK':'UPSET')+'</span>';
-    cards+='<div class="bmatch'+(R.played?' played':'')+(R.upset?' is-'+R.upset:'')+'" style="left:'+x+'px;top:'+y+'px">'+(badges?'<div class="bbadges">'+badges+'</div>':'')+
-      row(R.t1,R.winner&&R.t1&&R.winner.name===R.t1.name,s1,p1)+row(R.t2,R.winner&&R.t2&&R.winner.name===R.t2.name,s2,p2)+'</div>';});
+    if(R.played&&R.upset)badges+='<span class="ubadge upset">UPSET</span>';
+    cards+='<div class="bmatch'+(R.played?' played':'')+(R.upset?' is-upset':'')+'" style="left:'+x+'px;top:'+y+'px">'+(badges?'<div class="bbadges">'+badges+'</div>':'')+
+      row(R.t1,R.winner&&R.t1&&R.winner.name===R.t1.name,s1,p1,R.t1conf)+row(R.t2,R.winner&&R.t2&&R.winner.name===R.t2.name,s2,p2,R.t2conf)+'</div>';});
   const champ=resolved[104]?resolved[104].winner:null;
   cards+='<div class="bchamp" style="left:'+champX+'px;top:'+(fy-34)+'px"><div class="ct">'+((resolved[104]&&resolved[104].played)?'Champion':'Projected')+'</div><div class="cf">'+(champ?champ.flag:'🏆')+'</div><div class="cn">'+(champ?esc(champ.name):'—')+'</div></div>';
   const canvas=document.getElementById('bracketCanvas');canvas.style.width=W+'px';canvas.style.height=H+'px';canvas.innerHTML='<svg width="'+W+'" height="'+H+'" style="position:absolute;left:0;top:0">'+paths+'</svg>'+labels+cards;
