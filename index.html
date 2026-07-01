@@ -519,7 +519,7 @@ async function fetchLive(){
   const res=await fetch(LIVE_URL,{cache:'no-store'});
   if(!res.ok)throw new Error('http '+res.status);
   const d=await res.json();const matches=d.matches||[];
-  const teamset=new Set(state.map(t=>t.name));const agg={};const results=[];const koScores={};const koPens={};const koTeams={};const fixtures=[];let through=null;
+  const teamset=new Set(state.map(t=>t.name));const agg={};const results=[];const koScores={};const koPens={};const koTeams={};const koDate={};const fixtures=[];let through=null;
   const ad=n=>{if(!agg[n])agg[n]={w:0,d:0,l:0,gf:0,ga:0}};
   const KOR={'Round of 32':2,'Round of 16':3,'Quarter-final':4,'Semi-final':5,'Match for third place':5,'Final':6};
   const reach={};let koPlayed=false,finalWinner=null;
@@ -527,7 +527,7 @@ async function fetchLive(){
     const a=mapName(x.team1),b=mapName(x.team2),ft=x.score&&x.score.ft;
     const isGroup=String(x.round||'').indexOf('Matchday')===0,koRank=KOR[x.round];
     fixtures.push({a,b,date:x.date||'',time:x.time||'',round:x.round||'',grp:(x.group||'').replace('Group ',''),ft:ft||null,pen:(x.score&&x.score.p)||null,ground:x.ground||''});
-    if(koRank&&ft&&x.num!=null){koScores[x.num]=ft;const pn=x.score&&x.score.p;if(pn)koPens[x.num]=pn;}
+    if(koRank&&x.num!=null){if(ft){koScores[x.num]=ft;const pn=x.score&&x.score.p;if(pn)koPens[x.num]=pn;}if(x.date)koDate[x.num]=x.date;}
     if(isGroup&&ft&&teamset.has(a)&&teamset.has(b)){
       ad(a);ad(b);agg[a].gf+=ft[0];agg[a].ga+=ft[1];agg[b].gf+=ft[1];agg[b].ga+=ft[0];
       if(ft[0]>ft[1]){agg[a].w++;agg[b].l++;}else if(ft[1]>ft[0]){agg[b].w++;agg[a].l++;}else{agg[a].d++;agg[b].d++;}
@@ -547,7 +547,7 @@ async function fetchLive(){
   const stages={};const R2S={2:'Round of 32',3:'Round of 16',4:'Quarter-final',5:'Semi-final',6:'Final'};
   state.forEach(t=>{const r=koPlayed?reach[t.name]:0;stages[t.name]=r?((finalWinner===t.name)?'Champion':R2S[r]):(koPlayed?'Eliminated':'Group');});
   results.sort((x,y)=>(y.date||'').localeCompare(x.date||''));
-  return{teams:agg,stages,results,koScores,koPens,koTeams,fixtures,through,ok:true};
+  return{teams:agg,stages,results,koScores,koPens,koTeams,koDate,fixtures,through,ok:true};
 }
 
 function setStatus(kind,through){
@@ -768,11 +768,12 @@ function renderToday(){
 }
 
 function computeCasualties(){
-  const fxs=(store.cache&&store.cache.fixtures)||[];const rows=[];
-  const koLab={'Round of 32':'R32','Round of 16':'R16','Quarter-final':'QF','Semi-final':'SF','Match for third place':'3rd-place play-off','Final':'Final'};
-  fxs.forEach(f=>{const lab=koLab[f.round];if(!lab||!f.ft)return;const a=byName(f.a),b=byName(f.b);if(!a||!b)return;
-    let loser=null;if(f.ft[0]!==f.ft[1])loser=f.ft[0]<f.ft[1]?a:b;else if(f.pen&&f.pen[0]!==f.pen[1])loser=f.pen[0]<f.pen[1]?a:b;
-    if(loser)rows.push({team:loser,k:kickoff(f),date:f.date,reason:'Lost in the '+lab,rd:lab});});
+  const ks=(store.cache&&store.cache.koScores)||{},kp=(store.cache&&store.cache.koPens)||{},kt=(store.cache&&store.cache.koTeams)||{},kd=(store.cache&&store.cache.koDate)||{};
+  const{resolved}=buildBracketModel(ks,kp,kt);const rows=[];
+  const koLab={'Round of 32':'R32','Round of 16':'R16','Quarter-final':'QF','Semi-final':'SF','Final':'Final'};
+  BRACKET.forEach(m=>{const R=resolved[m.n];if(!R||!R.played||!R.loser)return;const lab=koLab[m.r];if(!lab)return;
+    const date=kd[m.n]||'';rows.push({team:R.loser,k:date?new Date(date+'T20:00:00'):null,date,reason:'Lost in the '+lab,rd:lab});});
+  const fxs=(store.cache&&store.cache.fixtures)||[];
   const letters=[...new Set(state.map(t=>t.group))].sort();
   const done={};letters.forEach(L=>done[L]=state.filter(t=>t.group===L).every(t=>played(t)>=3));
   const last={};fxs.forEach(f=>{if(f.grp&&(!last[f.grp]||f.date>last[f.grp]))last[f.grp]=f.date;});
@@ -787,6 +788,24 @@ function computeCasualties(){
 function markOut(){
   const gone=new Set(computeCasualties().map(c=>c.team.name));
   state.forEach(t=>{t.out=gone.has(t.name)||t.stage==='Eliminated';});
+}
+// Each team's furthest round is derived from the resolved bracket (which correctly handles a team that has
+// advanced but whose next opponent isn't known yet), not from fixture appearances — so progression is exact.
+function applyStages(){
+  const ks=(store.cache&&store.cache.koScores)||{},kp=(store.cache&&store.cache.koPens)||{},kt=(store.cache&&store.cache.koTeams)||{};
+  const{resolved}=buildBracketModel(ks,kp,kt);
+  const groupsDone=state.length>0&&state.every(t=>played(t)>=3);
+  const RANK={'Round of 32':2,'Round of 16':3,'Quarter-final':4,'Semi-final':5,'Match for third place':5,'Final':6};
+  const reachR={};
+  BRACKET.forEach(m=>{const R=resolved[m.n];if(!R)return;
+    [[R.t1,R.t1conf],[R.t2,R.t2conf]].forEach(([t,conf])=>{if(t&&conf){const c=reachR[t.name];if(!c||RANK[m.r]>c)reachR[t.name]=RANK[m.r];}});});
+  const champ=(resolved[104]&&resolved[104].played)?resolved[104].winner:null;
+  const LBL={2:'Round of 32',3:'Round of 16',4:'Quarter-final',5:'Semi-final',6:'Final'};
+  state.forEach(t=>{
+    if(champ&&champ.name===t.name){t.stage='Champion';return;}
+    const r=reachR[t.name];
+    t.stage=r?LBL[r]:(groupsDone?'Eliminated':'Group');
+  });
 }
 function renderCasualties(){
   const el=document.getElementById('casualties');if(!el)return;
@@ -839,7 +858,7 @@ function teamProfileHTML(name,ctx){
 function openTeam(name){const html=teamProfileHTML(name);if(!html)return;document.getElementById('teamSheet').innerHTML='<button class="x" data-close>✕</button>'+html;document.getElementById('teamModal').classList.add('show');}
 function closeTeam(){document.getElementById('teamModal').classList.remove('show');}
 
-function renderAll(){markOut();renderToday();renderLadder();renderGroups();renderStats();renderBracket();renderTeams();renderCasualties();}
+function renderAll(){applyStages();markOut();renderToday();renderLadder();renderGroups();renderStats();renderBracket();renderTeams();renderCasualties();}
 function setupShell(){
   document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));
